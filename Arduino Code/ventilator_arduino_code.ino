@@ -1,229 +1,239 @@
 #include <LiquidCrystal_I2C.h>
 LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
+//===========================================
+// Command Codes - For Sending to the Arduino
+//===========================================
+// RR - Respiratory Rate (int, 10-20)  breaths per minute
+// IR - Inspiratory Rate (float 0.1 - 5.0) seconds
+// PEEP - PEEP (int 0-20) cm H2O
+// O2 - Oxygen Percentage (0-100) %
+// TV - Tidal Volume (int 200-2500) ml
+// Status - Ventilator enabled/disabled
+// PatientPressure - Patient pressure
+// FlowSensor - Air/02 flow being delivered to patient
 
-//Variables for receiving data from USB:
-String inputString = ""; 
+//=====================================
+// Variables for important data
+//=====================================
+int RR = 0;
+int IR = 0;
+int PEEP = 0;
+int O2 = 0;
+int TV = 0;
+int Status = 0;
+int PatientPressure = 0;
+int FlowSensor = 0;
+String inputString = "";
 String temp = "";
-String volumeString = "";
-String breathString = "";
-String peepString = "";
-String ratioString = "";
-String oxygenString = "";
-String alarmString = "";
-String statusString = "";
 String temp_string = "";
-
-//Misc Variables:
-int a = 0;
-int volume = 0;
-int breath = 12;
-int peep = 5;
-int ratio = 1;
-int oxygen = 21;
-int alarm = 30;
 int stringlength = 0;
-int ventStatus = 0;
 
 
-int i=0;
+//=============================================
+// String variables for receiving data from USB
+//=============================================
+String RRstring = "";
+String IRstring = "";
+String PEEPstring = "";
+String O2string = "";
+String TVstring = "";
+String Statusstring = "";
+String PatientPressureString = "";
+String FlowSensorString = "";
 
-char string[32];
-char byteRead;
+// How many ms delay in the loop
+int LoopDelay = 1000;
 
-const int PAPin = A0; 
-const int PBPin = A1; 
-const int PCPin = A2; 
-int PA = 0;
-int PB = 0;
-int PC = 0;
+//===================
+// Some Pin Constants
+//===================
+const int PatientPressurePin = A0;
+const int FlowSensorPin = A1;
 
-int serialdata = 0;
-bool stringComplete = false; 
+//=========================================================
+// This variable goes high when we get a newline
+// in the serial data, signifying the end of a valid packet
+//=========================================================
+bool stringComplete = false;
+
+
 
 
 void setup() {
+  // Open the serial port to send data
   Serial.begin(9600);
-  pinMode(13,OUTPUT);
-  //Serial.println("Hello Pi, this is arduino uno");
 
-  // LCD Stuff
-  lcd.init(); 
+  // LCD Display
+  lcd.init();
   lcd.backlight();
-
 }
 
 
-void loop() 
+void loop()
 {
+    //==================================
     // Read Sensors, store in variables
-    PA = analogRead(PAPin);
-    PB = analogRead(PBPin);
-    PC = analogRead(PCPin);
+    //==================================
+    PatientPressure = analogRead(PatientPressurePin);
+    FlowSensor = analogRead(FlowSensorPin);
 
+    //==================================
     // Send the data out the serial port
-    //Serial.print(i);
-    //Serial.print(",");
-    Serial.print("PA,");
-    Serial.println(PA);
-    Serial.print("PB,");
-    Serial.println(PB);
-    Serial.print("PC,");
-    Serial.println(PC);
+    //==================================
+    Serial.print("RR,");
+    Serial.println(RR);
+    Serial.print("IR,");
+    Serial.println(IR);
+    Serial.print("PEEP,");
+    Serial.println(PEEP);
+    Serial.print("O2,");
+    Serial.println(O2);
+    Serial.print("TV,");
+    Serial.println(TV);
+    Serial.print("Status,");
+    Serial.println(Status);
+    Serial.print("PatientPressure,");
+    Serial.println(PatientPressure);
+    Serial.print("FlowSensor,");
+    Serial.println(FlowSensor);
 
-
-    i++;
-    
-    // Read the serial port
+    //==================================
+    // Read the serial port data
+    //==================================
     serialEvent();
 
-
-
-    if (stringComplete) 
+    // Wait for a newline from the PI
+    if (stringComplete)
     {
-      temp = inputString.charAt(0); 
+      temp = inputString.charAt(0);
       stringlength = inputString.length();
-      
-      volumeString ="";
-      breathString = "";
-      peepString = "";
-      ratioString = "";
-      oxygenString = "";
-      alarmString = "";
-      statusString = "";
-      
-      if (temp == "t") 
-      {
-        for (int i = 1; i <= stringlength; i = i + 1)
-        {
-          temp_string = inputString.charAt(i);
-          volumeString += temp_string;
-        }
-        volume = volumeString.toInt();  
-        WriteToLCD4(temp,volumeString);
-        
-      }
-      else if (temp == "s") 
-      {
-        for (int i = 1; i <= stringlength; i = i + 1)
-        {
-          temp_string = inputString.charAt(i);
-          statusString += temp_string;
-        }
-        ventStatus = statusString.toInt();  
-        WriteToLCD4(temp,statusString);
 
-      }
-      else if (temp == "b") 
-      {
-        for (int i = 1; i <= stringlength; i = i + 1)
-        {
-          temp_string = inputString.charAt(i);
-          breathString += temp_string;
-        }
-        breath = breathString.toInt();  
-        WriteToLCD4(temp,breathString);
+      // Clear the command strings
+      RRstring = "";
+      IRstring = "";
+      PEEPstring = "";
+      O2string = "";
+      TVstring = "";
+      Statusstring = "";
+      PatientPressureString = "";
+      FlowSensorString = "";
 
-      }
-      else if (temp == "p") 
+      //==================================================
+      // Parse the command code so we can update the value
+      //==================================================
+      // R is for Respiration Rate
+      if (temp == "R")
       {
         for (int i = 1; i <= stringlength; i = i + 1)
         {
           temp_string = inputString.charAt(i);
-          peepString += temp_string;
+          RRstring += temp_string;
         }
-        peep = peepString.toInt();  
-        Serial.println(peep);
-        WriteToLCD4(temp,peepString);
+        RR = RRstring.toInt();
+        //WriteToLCD();
       }
-      else if (temp == "o") 
+      // I is for Inspiration Rate
+      else if (temp == "I")
       {
         for (int i = 1; i <= stringlength; i = i + 1)
         {
           temp_string = inputString.charAt(i);
-          oxygenString += temp_string;
+          IRstring += temp_string;
         }
-        oxygen = oxygenString.toInt();  
-        Serial.println(oxygen);
-        WriteToLCD4(temp,oxygenString);
+        IR = IRstring.toInt();
       }
-      else if (temp == "r") 
+      // E is for PEEP
+      else if (temp == "E")
       {
         for (int i = 1; i <= stringlength; i = i + 1)
         {
           temp_string = inputString.charAt(i);
-          ratioString += temp_string;
+          PEEPstring += temp_string;
         }
-        ratio = ratioString.toInt();  
-        WriteToLCD4(temp,ratioString);
+        PEEP = PEEPstring.toInt();
       }
-      else if (temp == "a") 
+      // O is for FiO2
+      else if (temp == "O")
       {
         for (int i = 1; i <= stringlength; i = i + 1)
         {
           temp_string = inputString.charAt(i);
-          alarmString += temp_string;
+          O2string += temp_string;
         }
-        alarm = alarmString.toInt();  
-        Serial.println(alarm);
-        WriteToLCD4(temp,alarmString);
-      }    
+        O2 = O2string.toInt();
+      }
+      // T is for Tidal Volume (TV)
+      else if (temp == "T")
+      {
+        for (int i = 1; i <= stringlength; i = i + 1)
+        {
+          temp_string = inputString.charAt(i);
+          TVstring += temp_string;
+        }
+        TV = TVstring.toInt();
+      }
+      // S is for Ventilator Status
+      else if (temp == "S")
+      {
+        for (int i = 1; i <= stringlength; i = i + 1)
+        {
+          temp_string = inputString.charAt(i);
+          Statusstring += temp_string;
+        }
+        Status = Statusstring.toInt();
+      }
       else
       {
-        WriteToLCD4("na","na");        
+        //WriteToLCD4("na","na");
       }
-      
+
       // clear the string:
       inputString = "";
       stringComplete = false;
     }
-           
-    
 
-    delay(50);
+    WriteToLCD();
+    delay(LoopDelay);
 }
 
-void WriteToLCD2(String command)
-{
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Command: ");
-      lcd.print(command);
-}
 
-void WriteToLCD4(String command, String value)
+void WriteToLCD()
 {
       lcd.clear();
+
       lcd.setCursor(0,0);
-      lcd.print("Command: ");
-      lcd.print(command);
+      lcd.print("RR:");
+      lcd.print("20");
+
       lcd.setCursor(0,1);
-      lcd.print("Value: ");
-      lcd.print(value);
+      lcd.print("IR:");
+      lcd.print("1.7");
 
+      lcd.setCursor(0,2);
+      lcd.print("0X:");
+      lcd.print("100%");
+
+      lcd.setCursor(0,3);
+      lcd.print("PEEP:");
+      lcd.print("13");
+
+      lcd.setCursor(9,0);
+      lcd.print("Press.:");
+      lcd.print("1023");
+
+      lcd.setCursor(10,1);
+      lcd.print("Status:");
+      lcd.print("Off");
+
+      lcd.setCursor(11,2);
+      lcd.print("Flow:");
+      lcd.print("1023");
+
+      lcd.setCursor(13,3);
+      lcd.print("TV:");
+      lcd.print("1500");
 }
-void WriteToLCD3(int value)
-{
-      //lcd.setCursor(1,0);
-      lcd.print("Value: ");
-      lcd.print(value);
-}
-
-void WriteToLCD(String command, int value)
-{
-      //lcd.clear();
-      lcd.setCursor(0,0);
-      //lcd.print("Received:");
-      //lcd.setCursor(0,1);
-      lcd.print("Command: ");
-      lcd.print(command);
-      //lcd.setCursor(0,2);
-      //lcd.print("Value: ");
-      //lcd.print(value);
-}
-
-
-
 
 void serialEvent() {
   while (Serial.available()) {
