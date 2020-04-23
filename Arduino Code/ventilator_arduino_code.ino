@@ -216,7 +216,7 @@ void WriteToLCD()
 
       lcd.setCursor(0,3);
       lcd.print("PEEP:");
-      lcd.print("13");
+      lcd.print("13"); 
 
       lcd.setCursor(9,0);
       lcd.print("Press.:");
