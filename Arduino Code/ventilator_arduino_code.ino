@@ -214,7 +214,7 @@ void WriteToLCD()
       lcd.print("0X:");
       lcd.print("100%");
 
-      lcd.setCursor(0,3);
+      lcd.setCursor(0,3); 
       lcd.print("PEEP:");
       lcd.print("13");
 
